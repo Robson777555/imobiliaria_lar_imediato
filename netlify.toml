@@ -19,11 +19,15 @@
   status = 200
   force = true
 
-# Catch-all para SPA - deve ser o ÚLTIMO redirect
+# Excluir funções Netlify do catch-all
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+  conditions = {Role = ["admin"], Country = ["US"]}
+  # Excluir rotas de funções
+  force = false
 
 [build.environment]
   NODE_VERSION = "20"
