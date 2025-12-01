@@ -159,10 +159,18 @@ export const handler = async (event: any) => {
     console.error("[Netlify Function]", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Internal error", message: error?.message || String(error) }),
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: JSON.stringify({ 
+        error: "Internal error", 
+        message: error?.message || String(error),
+        type: "TRPC_ERROR"
+      }),
     };
-  }
   } catch (outerError: any) {
     // Se houver qualquer erro no handler, sempre retornar JSON
     console.error("[Netlify Function Handler Error]", outerError);
