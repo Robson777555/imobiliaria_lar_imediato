@@ -45,3 +45,7 @@
   external_node_modules = ["@trpc/server", "@trpc/client", "express", "bcrypt", "jose"]
   node_sourcemap = true
 
+[[edge_functions]]
+  path = "/api/trpc/*"
+  function = "trpc"
+
