@@ -213,7 +213,8 @@ export const handler = async (event: any) => {
       body: JSON.stringify({ 
         error: "Internal error", 
         message: error?.message || String(error),
-        type: "TRPC_ERROR"
+        type: "TRPC_HANDLER_ERROR",
+        stack: error?.stack
       }),
     };
   } catch (outerError: any) {
