@@ -46,15 +46,39 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
+// Detectar se estamos em produção e se as funções Netlify funcionam
+const getApiUrl = () => {
+  // Em desenvolvimento, usar o servidor local
+  if (import.meta.env.DEV) {
+    return "/api/trpc";
+  }
+  
+  // Em produção, tentar usar Netlify Functions primeiro
+  // Se falhar, poderá usar um backend alternativo
+  return "/api/trpc";
+};
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: getApiUrl(),
       transformer: superjson,
       fetch(input, init) {
+        // Wrapper para detectar erros e logar
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
+        }).catch((error) => {
+          console.error("[tRPC Fetch Error]", error);
+          throw error;
+        }).then((response) => {
+          // Verificar se retornou HTML ao invés de JSON
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("text/html")) {
+            console.error("[tRPC Error] Recebeu HTML ao invés de JSON. URL:", input);
+            throw new Error("API retornou HTML - funções Netlify podem não estar funcionando");
+          }
+          return response;
         });
       },
     }),
