@@ -20,21 +20,15 @@
   status = 200
   force = true
 
-# EXCLUIR funções Netlify do catch-all - IMPORTANTE!
-# O Netlify deveria fazer isso automaticamente, mas vamos garantir
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
-
-# Catch-all para SPA - deve ser o ÚLTIMO redirect
-# Este NÃO deve capturar /.netlify/* (mas vamos garantir acima)
+# Catch-all para SPA - EXCLUIR funções Netlify
+# O padrão /* NÃO captura /.netlify/* por padrão, mas vamos garantir
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
+  conditions = {Role = ["*"]}
+  # Isso não deve capturar /.netlify/functions/*
 
 [build.environment]
   NODE_VERSION = "20"
