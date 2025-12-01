@@ -1,0 +1,20 @@
+CREATE TABLE `properties` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`price` int NOT NULL,
+	`neighborhood` varchar(100),
+	`address` text,
+	`type` enum('Apartamento','Casa','Studio','Sobrado','Penthouse','Terreno','Comercial') NOT NULL,
+	`bedrooms` int NOT NULL DEFAULT 0,
+	`bathrooms` int NOT NULL DEFAULT 0,
+	`garages` int NOT NULL DEFAULT 0,
+	`area` int NOT NULL,
+	`description` text,
+	`image` text,
+	`available` enum('true','false') NOT NULL DEFAULT 'true',
+	`featured` enum('true','false') NOT NULL DEFAULT 'false',
+	`userId` int NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `properties_id` PRIMARY KEY(`id`)
+);
