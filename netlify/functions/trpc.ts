@@ -4,6 +4,19 @@ import { createContext } from "../../server/_core/context";
 
 // Handler para Netlify Functions - SOLUÇÃO DEFINITIVA
 export const handler = async (event: any) => {
+  console.log("=".repeat(80));
+  console.log("[TRPC FUNCTION] Handler iniciado");
+  console.log("[TRPC FUNCTION] Event recebido:", JSON.stringify({
+    httpMethod: event.httpMethod,
+    path: event.path,
+    rawPath: event.rawPath,
+    queryStringParameters: event.queryStringParameters,
+    pathParameters: event.pathParameters,
+    headers: Object.keys(event.headers || {}),
+    hasBody: !!event.body,
+  }, null, 2));
+  console.log("=".repeat(80));
+  
   // Se a função está sendo chamada, sempre retornar JSON válido
   // Isso garante que nunca retornaremos HTML por engano
   try {
@@ -11,6 +24,8 @@ export const handler = async (event: any) => {
     
     const protocol = (event.headers?.["x-forwarded-proto"] || "https").split(",")[0].trim();
     const host = event.headers?.host || "localhost";
+    
+    console.log("[TRPC FUNCTION] Protocol:", protocol, "Host:", host);
   
   // ESTRATÉGIA DEFINITIVA: O Netlify preserva o path original no rawPath
   // Mesmo após redirect, rawPath contém o path original da requisição
@@ -19,24 +34,29 @@ export const handler = async (event: any) => {
   // PRIORIDADE 1: rawPath - sempre contém o path original antes do redirect
   if (event.rawPath && event.rawPath.startsWith("/api/trpc")) {
     requestPath = event.rawPath;
+    console.log("[TRPC FUNCTION] Path resolvido via PRIORIDADE 1 (rawPath):", requestPath);
   } 
   // PRIORIDADE 2: path - pode conter o path original
   else if (event.path && event.path.startsWith("/api/trpc")) {
     requestPath = event.path;
+    console.log("[TRPC FUNCTION] Path resolvido via PRIORIDADE 2 (path):", requestPath);
   }
   // PRIORIDADE 3: query parameter (passado pelo redirect)
   else if (event.queryStringParameters?.path) {
     requestPath = `/api/trpc/${event.queryStringParameters.path}`;
+    console.log("[TRPC FUNCTION] Path resolvido via PRIORIDADE 3 (query param):", requestPath);
   }
   // PRIORIDADE 4: pathParameters (catch-all)
   else if (event.pathParameters) {
     const proxy = event.pathParameters.proxy || event.pathParameters["*"] || "";
     requestPath = proxy ? `/api/trpc/${proxy}` : "/api/trpc";
+    console.log("[TRPC FUNCTION] Path resolvido via PRIORIDADE 4 (pathParameters):", requestPath, "proxy:", proxy);
   }
   // PRIORIDADE 5: reconstruir do rawPath se contém função
   else if (event.rawPath && event.rawPath.includes("/.netlify/functions/trpc")) {
     const match = event.rawPath.match(/\/\.netlify\/functions\/trpc\/?(.*)/);
     requestPath = match && match[1] ? `/api/trpc/${match[1]}` : "/api/trpc";
+    console.log("[TRPC FUNCTION] Path resolvido via PRIORIDADE 5 (rawPath com função):", requestPath);
   }
   // FALLBACK: header x-original-url
   else if (event.headers?.["x-original-url"]) {
@@ -44,13 +64,16 @@ export const handler = async (event: any) => {
       const originalUrl = event.headers["x-original-url"];
       const url = new URL(originalUrl.startsWith("http") ? originalUrl : `${protocol}://${host}${originalUrl}`);
       requestPath = url.pathname.startsWith("/api/trpc") ? url.pathname : "/api/trpc";
-    } catch {
+      console.log("[TRPC FUNCTION] Path resolvido via FALLBACK (x-original-url):", requestPath);
+    } catch (e) {
       requestPath = "/api/trpc";
+      console.log("[TRPC FUNCTION] Erro ao parsear x-original-url, usando fallback:", requestPath);
     }
   }
   // ÚLTIMO RECURSO
   else {
     requestPath = "/api/trpc";
+    console.log("[TRPC FUNCTION] Path resolvido via ÚLTIMO RECURSO:", requestPath);
   }
   
   // Garantir que sempre começa com /api/trpc
@@ -71,6 +94,10 @@ export const handler = async (event: any) => {
   }
   
   const url = `${protocol}://${host}${requestPath}${queryString}`;
+  
+  console.log("[TRPC FUNCTION] URL final construída:", url);
+  console.log("[TRPC FUNCTION] Request path:", requestPath);
+  console.log("[TRPC FUNCTION] Query string:", queryString);
   
   // Headers
   const headers = new Headers();
@@ -123,15 +150,24 @@ export const handler = async (event: any) => {
     } as any,
   };
 
+  console.log("[TRPC FUNCTION] Iniciando fetchRequestHandler...");
   try {
     const response = await fetchRequestHandler({
       endpoint: "/api/trpc",
       req,
       router: appRouter,
-      createContext: async () => createContext(expressContext),
-      onError: ({ error, path, type }) => {
-        console.error(`[tRPC] ${type} ${path}:`, error);
+      createContext: async () => {
+        console.log("[TRPC FUNCTION] Criando contexto...");
+        return createContext(expressContext);
       },
+      onError: ({ error, path, type }) => {
+        console.error(`[TRPC FUNCTION] [tRPC Error] ${type} ${path}:`, error);
+      },
+    });
+    
+    console.log("[TRPC FUNCTION] Response recebida:", {
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
     });
 
     const responseHeaders: Record<string, string | string[]> = {};
@@ -173,7 +209,11 @@ export const handler = async (event: any) => {
     };
   } catch (outerError: any) {
     // Se houver qualquer erro no handler, sempre retornar JSON
-    console.error("[Netlify Function Handler Error]", outerError);
+    console.error("[TRPC FUNCTION] [FATAL ERROR] Erro no handler:", outerError);
+    console.error("[TRPC FUNCTION] [FATAL ERROR] Stack:", outerError?.stack);
+    console.error("[TRPC FUNCTION] [FATAL ERROR] Message:", outerError?.message);
+    console.error("=".repeat(80));
+    
     return {
       statusCode: 500,
       headers: { 
@@ -185,7 +225,14 @@ export const handler = async (event: any) => {
       body: JSON.stringify({ 
         error: "Function error", 
         message: outerError?.message || String(outerError),
-        type: "TRPC_ERROR"
+        type: "FATAL_TRPC_ERROR",
+        stack: outerError?.stack,
+        eventInfo: {
+          hasEvent: !!event,
+          httpMethod: event?.httpMethod,
+          path: event?.path,
+          rawPath: event?.rawPath,
+        }
       }),
     };
   }
