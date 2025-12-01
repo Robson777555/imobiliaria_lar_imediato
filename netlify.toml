@@ -33,4 +33,6 @@
 [functions]
   node_bundler = "esbuild"
   directory = "netlify/functions"
+  external_node_modules = ["@trpc/server", "@trpc/client", "express", "bcrypt", "jose"]
+  node_sourcemap = true
 
