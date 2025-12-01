@@ -4,10 +4,13 @@ import { createContext } from "../../server/_core/context";
 
 // Handler para Netlify Functions - SOLUÇÃO DEFINITIVA
 export const handler = async (event: any) => {
-  const cookies: string[] = [];
-  
-  const protocol = (event.headers?.["x-forwarded-proto"] || "https").split(",")[0].trim();
-  const host = event.headers?.host || "localhost";
+  // Se a função está sendo chamada, sempre retornar JSON válido
+  // Isso garante que nunca retornaremos HTML por engano
+  try {
+    const cookies: string[] = [];
+    
+    const protocol = (event.headers?.["x-forwarded-proto"] || "https").split(",")[0].trim();
+    const host = event.headers?.host || "localhost";
   
   // ESTRATÉGIA DEFINITIVA: O Netlify preserva o path original no rawPath
   // Mesmo após redirect, rawPath contém o path original da requisição
@@ -158,6 +161,24 @@ export const handler = async (event: any) => {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Internal error", message: error?.message || String(error) }),
+    };
+  }
+  } catch (outerError: any) {
+    // Se houver qualquer erro no handler, sempre retornar JSON
+    console.error("[Netlify Function Handler Error]", outerError);
+    return {
+      statusCode: 500,
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: JSON.stringify({ 
+        error: "Function error", 
+        message: outerError?.message || String(outerError),
+        type: "TRPC_ERROR"
+      }),
     };
   }
 };
