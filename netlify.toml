@@ -2,7 +2,10 @@
   command = "npm run build"
   publish = "dist/public"
 
-# Redirect para função Netlify - passar o path como parâmetro
+# IMPORTANTE: Os redirects são processados em ordem
+# Primeiro, capturar todas as rotas da API antes do catch-all
+
+# Redirect para função Netlify com path
 [[redirects]]
   from = "/api/trpc/*"
   to = "/.netlify/functions/trpc?path=:splat"
@@ -15,6 +18,7 @@
   status = 200
   force = true
 
+# Catch-all para SPA - deve ser o ÚLTIMO redirect
 [[redirects]]
   from = "/*"
   to = "/index.html"

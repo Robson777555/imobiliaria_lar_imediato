@@ -10,39 +10,46 @@ export const handler = async (event: any) => {
   const host = event.headers?.host || "localhost";
   
   // Obter o path original da requisição
-  // O Netlify sempre passa o rawPath com o path completo da requisição original
+  // O Netlify preserva o path original no rawPath mesmo após redirect
   let requestPath = "";
   
-  // O rawPath contém o path completo da requisição original (ex: /api/trpc/auth.login)
-  // Mesmo que o redirect seja feito, o rawPath mantém o path original
-  if (event.rawPath) {
-    // rawPath já contém o path original antes do redirect
-    requestPath = event.rawPath;
-  } else if (event.path) {
-    // Fallback para v1
-    requestPath = event.path;
-  }
-  
-  // Se o path contém o prefixo da função, é porque não foi redirecionado corretamente
-  // Nesse caso, tentar reconstruir do pathParameters ou query
-  if (requestPath.includes("/.netlify/functions/trpc")) {
-    const pathParams = event.pathParameters || {};
-    const splat = pathParams.proxy || pathParams["*"] || pathParams.splat || event.queryStringParameters?.path || "";
-    if (splat) {
-      requestPath = `/api/trpc/${splat}`;
-    } else {
-      // Extrair o que vem depois de /.netlify/functions/trpc
-      const match = requestPath.match(/\/\.netlify\/functions\/trpc\/(.*)/);
+  // Primeiro, tentar pegar do query parameter (passado pelo redirect)
+  const pathFromQuery = event.queryStringParameters?.path;
+  if (pathFromQuery) {
+    requestPath = `/api/trpc/${pathFromQuery}`;
+  } else {
+    // Tentar do rawPath - contém o path original da requisição
+    if (event.rawPath && event.rawPath.startsWith("/api/trpc")) {
+      requestPath = event.rawPath;
+    } else if (event.rawPath) {
+      // Se o rawPath tem o prefixo da função, extrair o path original
+      const match = event.rawPath.match(/\/\.netlify\/functions\/trpc\/?(.*)/);
       if (match && match[1]) {
         requestPath = `/api/trpc/${match[1]}`;
       } else {
         requestPath = "/api/trpc";
       }
+    } else if (event.path && event.path.startsWith("/api/trpc")) {
+      requestPath = event.path;
+    } else {
+      // Último recurso: tentar pathParameters
+      const pathParams = event.pathParameters || {};
+      const splat = pathParams.proxy || pathParams["*"] || pathParams.splat || "";
+      requestPath = splat ? `/api/trpc/${splat}` : "/api/trpc";
     }
   }
   
-  // Garantir que começa com /api/trpc
-  if (!requestPath || !requestPath.startsWith("/api/trpc")) {
+  // Log para debug (pode ser removido depois)
+  console.log("[Netlify Function Debug]", {
+    rawPath: event.rawPath,
+    path: event.path,
+    queryParams: event.queryStringParameters,
+    pathParams: event.pathParameters,
+    resolvedPath: requestPath,
+  });
+  
+  // Garantir que sempre começa com /api/trpc
+  if (!requestPath.startsWith("/api/trpc")) {
     requestPath = "/api/trpc";
   }
   
