@@ -9,42 +9,32 @@ export const handler = async (event: any) => {
   const protocol = (event.headers?.["x-forwarded-proto"] || "https").split(",")[0].trim();
   const host = event.headers?.host || "localhost";
   
-  // Obter o path original - o Netlify pode passar de várias formas
+  // Obter o path original da requisição
+  // O Netlify sempre passa o rawPath com o path completo da requisição original
   let requestPath = "";
   
-  // 1. Tentar pegar do header x-original-url ou x-forwarded-uri
-  const originalUrl = event.headers?.["x-original-url"] || event.headers?.["x-forwarded-uri"];
-  if (originalUrl) {
-    try {
-      const url = new URL(originalUrl.startsWith("http") ? originalUrl : `${protocol}://${host}${originalUrl}`);
-      requestPath = url.pathname;
-    } catch {
-      requestPath = originalUrl;
-    }
+  // O rawPath contém o path completo da requisição original (ex: /api/trpc/auth.login)
+  // Mesmo que o redirect seja feito, o rawPath mantém o path original
+  if (event.rawPath) {
+    // rawPath já contém o path original antes do redirect
+    requestPath = event.rawPath;
+  } else if (event.path) {
+    // Fallback para v1
+    requestPath = event.path;
   }
   
-  // 2. Se não encontrou, tentar do rawPath (v2) ou path (v1)
-  if (!requestPath) {
-    if (event.rawPath) {
-      // V2: rawPath inclui o path completo incluindo a função
-      requestPath = event.rawPath.replace("/.netlify/functions/trpc", "/api/trpc");
-    } else if (event.path) {
-      // V1: path pode incluir o prefixo da função
-      requestPath = event.path.replace("/.netlify/functions/trpc", "/api/trpc");
-    }
-  }
-  
-  // 3. Tentar reconstruir do pathParameters (se o redirect passou como :splat)
-  if (!requestPath || requestPath === "/api/trpc" || requestPath === "/.netlify/functions/trpc") {
+  // Se o path contém o prefixo da função, é porque não foi redirecionado corretamente
+  // Nesse caso, tentar reconstruir do pathParameters ou query
+  if (requestPath.includes("/.netlify/functions/trpc")) {
     const pathParams = event.pathParameters || {};
-    const splat = pathParams.proxy || pathParams["*"] || pathParams.splat || "";
+    const splat = pathParams.proxy || pathParams["*"] || pathParams.splat || event.queryStringParameters?.path || "";
     if (splat) {
       requestPath = `/api/trpc/${splat}`;
     } else {
-      // 4. Última tentativa: pegar do query string ou header
-      const pathFromQuery = event.queryStringParameters?.path;
-      if (pathFromQuery) {
-        requestPath = `/api/trpc/${pathFromQuery}`;
+      // Extrair o que vem depois de /.netlify/functions/trpc
+      const match = requestPath.match(/\/\.netlify\/functions\/trpc\/(.*)/);
+      if (match && match[1]) {
+        requestPath = `/api/trpc/${match[1]}`;
       } else {
         requestPath = "/api/trpc";
       }
@@ -52,10 +42,8 @@ export const handler = async (event: any) => {
   }
   
   // Garantir que começa com /api/trpc
-  if (!requestPath.startsWith("/api/trpc")) {
-    // Se o path contém algo, adicionar ao /api/trpc
-    const remaining = requestPath.replace("/.netlify/functions/trpc", "").replace(/^\/api\/trpc/, "");
-    requestPath = `/api/trpc${remaining}`;
+  if (!requestPath || !requestPath.startsWith("/api/trpc")) {
+    requestPath = "/api/trpc";
   }
   
   // Tratar query string
