@@ -5,7 +5,8 @@
 # IMPORTANTE: Os redirects são processados em ordem
 # Primeiro, capturar todas as rotas da API antes do catch-all
 
-# Redirect para função Netlify com path
+# Redirect para função Netlify - SOLUÇÃO DEFINITIVA
+# Passar o path completo como query parameter
 [[redirects]]
   from = "/api/trpc/*"
   to = "/.netlify/functions/trpc?path=:splat"
