@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist/public"
+  functions = "netlify/functions"
 
 # IMPORTANTE: Os redirects são processados em ordem
 # Primeiro, capturar todas as rotas da API antes do catch-all
