@@ -4,7 +4,7 @@
 
 [[redirects]]
   from = "/api/trpc/*"
-  to = "/.netlify/functions/trpc"
+  to = "/.netlify/functions/trpc/:splat"
   status = 200
   force = true
 
