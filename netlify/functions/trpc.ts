@@ -186,13 +186,22 @@ export const handler = async (event: any) => {
       responseHeaders["Set-Cookie"] = allCookies;
     }
 
+    const responseBody = await response.text();
+    
+    console.log("[TRPC FUNCTION] Response body length:", responseBody.length);
+    console.log("[TRPC FUNCTION] Response headers finais:", responseHeaders);
+    console.log("[TRPC FUNCTION] Retornando response com status:", response.status);
+    console.log("=".repeat(80));
+
     return {
       statusCode: response.status,
       headers: responseHeaders,
-      body: await response.text(),
+      body: responseBody,
     };
   } catch (error: any) {
-    console.error("[Netlify Function]", error);
+    console.error("[TRPC FUNCTION] [ERROR] Erro no fetchRequestHandler:", error);
+    console.error("[TRPC FUNCTION] [ERROR] Stack:", error?.stack);
+    console.error("[TRPC FUNCTION] [ERROR] Message:", error?.message);
     return {
       statusCode: 500,
       headers: { 
