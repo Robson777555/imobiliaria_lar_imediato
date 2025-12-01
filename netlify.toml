@@ -2,9 +2,16 @@
   command = "npm run build"
   publish = "dist/public"
 
+# Redirect para função Netlify - passar o path como parâmetro
 [[redirects]]
   from = "/api/trpc/*"
-  to = "/.netlify/functions/trpc/:splat"
+  to = "/.netlify/functions/trpc?path=:splat"
+  status = 200
+  force = true
+  
+[[redirects]]
+  from = "/api/trpc"
+  to = "/.netlify/functions/trpc"
   status = 200
   force = true
 
