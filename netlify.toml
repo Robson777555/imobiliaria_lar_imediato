@@ -20,15 +20,12 @@
   status = 200
   force = true
 
-# Catch-all para SPA - EXCLUIR funções Netlify
-# O padrão /* NÃO captura /.netlify/* por padrão, mas vamos garantir
+# Catch-all para SPA - deve ser o ÚLTIMO
+# O Netlify automaticamente exclui /.netlify/* deste catch-all
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
-  conditions = {Role = ["*"]}
-  # Isso não deve capturar /.netlify/functions/*
 
 [build.environment]
   NODE_VERSION = "20"
