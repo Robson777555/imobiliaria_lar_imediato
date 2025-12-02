@@ -26,32 +26,51 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        const user = await authenticateWithPassword(input.username, input.password);
+        console.log(`[Login] Tentativa de login para usuário: ${input.username}`);
+        console.log(`[Login] Request origin: ${ctx.req.headers.origin}`);
+        console.log(`[Login] Request hostname: ${ctx.req.hostname}`);
+        console.log(`[Login] Request protocol: ${ctx.req.protocol}`);
+        console.log(`[Login] X-Forwarded-Proto: ${ctx.req.headers['x-forwarded-proto']}`);
         
-        if (!user) {
-          throw ForbiddenError("Credenciais inválidas");
+        try {
+          const user = await authenticateWithPassword(input.username, input.password);
+          
+          if (!user) {
+            console.log(`[Login] Credenciais inválidas para usuário: ${input.username}`);
+            throw ForbiddenError("Credenciais inválidas");
+          }
+
+          console.log(`[Login] Usuário autenticado: ${user.username} (ID: ${user.id})`);
+
+          const sessionToken = await createSessionToken(user, {
+            expiresInMs: ONE_YEAR_MS,
+          });
+
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          console.log(`[Login] Cookie options:`, cookieOptions);
+          
+          ctx.res.cookie(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: ONE_YEAR_MS,
+          });
+
+          console.log(`[Login] Cookie definido com sucesso`);
+
+          return {
+            success: true,
+            user: {
+              id: user.id,
+              username: user.username,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            },
+          };
+        } catch (error: any) {
+          console.error(`[Login] Erro durante login:`, error);
+          console.error(`[Login] Stack:`, error?.stack);
+          throw error;
         }
-
-        const sessionToken = await createSessionToken(user, {
-          expiresInMs: ONE_YEAR_MS,
-        });
-
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, {
-          ...cookieOptions,
-          maxAge: ONE_YEAR_MS,
-        });
-
-        return {
-          success: true,
-          user: {
-            id: user.id,
-            username: user.username,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          },
-        };
       }),
   }),
 

@@ -11,6 +11,36 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 
+// Trust proxy - CRITICAL for Vercel/Netlify to correctly detect HTTPS
+// This allows Express to trust the X-Forwarded-* headers from the proxy
+app.set('trust proxy', true);
+
+// CORS Configuration - CRITICAL for production
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+    process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : null,
+  ].filter(Boolean);
+
+  // Allow requests from any origin in development, or from allowed origins in production
+  if (process.env.NODE_ENV === "development" || !origin || allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.setHeader("Access-Control-Expose-Headers", "Set-Cookie");
+  }
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  next();
+});
+
 // Configure body parser
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));

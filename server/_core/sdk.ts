@@ -266,13 +266,24 @@ class SDKServer {
 
   async authenticateRequest(req: Request): Promise<User> {
     const cookieHeader = (req.headers as any)?.cookie || (req as any).get?.("cookie") || "";
+    console.log(`[SDK Auth] Cookie header presente: ${!!cookieHeader}`);
+    console.log(`[SDK Auth] Cookie header length: ${cookieHeader.length}`);
     const cookies = this.parseCookies(cookieHeader);
     const sessionCookie = cookies.get(COOKIE_NAME);
+    console.log(`[SDK Auth] Session cookie encontrado: ${!!sessionCookie}`);
+    
+    if (!sessionCookie) {
+      console.log(`[SDK Auth] Nenhum cookie de sessão encontrado. Cookies disponíveis:`, Array.from(cookies.keys()));
+    }
+    
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {
+      console.log(`[SDK Auth] Sessão inválida ou expirada`);
       throw ForbiddenError("Invalid session cookie");
     }
+    
+    console.log(`[SDK Auth] Sessão válida. openId: ${session.openId}`);
 
     const signedInAt = new Date();
     let user: User | undefined;

@@ -15,7 +15,14 @@ export async function createContext(
 
   try {
     user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
+    if (user) {
+      console.log(`[Context] Usuário autenticado: ${user.username} (ID: ${user.id})`);
+    }
+  } catch (error: any) {
+    // Log apenas se não for um erro de autenticação esperado (sem cookie)
+    if (error?.message && !error.message.includes("Invalid session cookie") && !error.message.includes("session cookie")) {
+      console.error(`[Context] Erro ao autenticar requisição:`, error.message);
+    }
     user = null;
   }
 
