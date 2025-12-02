@@ -1,6 +1,0 @@
-# API routes - antes do catch-all
-/api/trpc/* /.netlify/functions/trpc?path=:splat 200!
-/api/trpc /.netlify/functions/trpc 200!
-
-# Garantir que funções Netlify não sejam interceptadas
-/.netlify/functions/* /.netlify/functions/:splat 200!
