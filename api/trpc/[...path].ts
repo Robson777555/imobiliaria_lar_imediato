@@ -4,31 +4,47 @@ import { createContext } from "../../server/_core/context";
 import { sdk } from "../../server/_core/sdk";
 
 export default async function handler(req: any, res: any) {
+  console.log("[tRPC Handler] Iniciado");
+  console.log("[tRPC Handler] Method:", req.method);
+  console.log("[tRPC Handler] Query:", JSON.stringify(req.query));
+  console.log("[tRPC Handler] URL:", req.url);
+  
   try {
-    // Get the original URL path
-    const pathArray = req.query.path;
+    // Get the original URL path from Vercel's catch-all route
+    const pathArray = req.query.path || [];
     const trpcPath = Array.isArray(pathArray) 
       ? pathArray.join("/")
       : pathArray || "";
     
-    // Build the full URL
+    console.log("[tRPC Handler] Path array:", pathArray);
+    console.log("[tRPC Handler] tRPC path:", trpcPath);
+    
+    // Build the full URL for the request
     const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.headers.host || "";
-    const queryString = new URLSearchParams(
-      Object.entries(req.query || {}).reduce((acc, [key, value]) => {
-        if (key !== "path" && value) {
-          acc[key] = String(value);
-        }
-        return acc;
-      }, {} as Record<string, string>)
-    ).toString();
     
+    // Get all query params except 'path'
+    const queryParams = new URLSearchParams();
+    Object.entries(req.query || {}).forEach(([key, value]) => {
+      if (key !== "path" && value) {
+        if (Array.isArray(value)) {
+          value.forEach(v => queryParams.append(key, String(v)));
+        } else {
+          queryParams.append(key, String(value));
+        }
+      }
+    });
+    
+    const queryString = queryParams.toString();
     const url = `${protocol}://${host}/api/trpc/${trpcPath}${queryString ? `?${queryString}` : ""}`;
+    
+    console.log("[tRPC Handler] Final URL:", url);
 
     // Get request body
     let body: string | undefined;
     if (req.body && req.method !== "GET" && req.method !== "HEAD") {
       body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      console.log("[tRPC Handler] Body length:", body?.length);
     }
 
     // Create Fetch Request
@@ -73,6 +89,7 @@ export default async function handler(req: any, res: any) {
     };
 
     // Call tRPC handler
+    console.log("[tRPC Handler] Chamando fetchRequestHandler...");
     const response = await fetchRequestHandler({
       endpoint: "/api/trpc",
       req: fetchReq,
@@ -82,7 +99,8 @@ export default async function handler(req: any, res: any) {
         let user = null;
         try {
           user = await sdk.authenticateRequest(expressReq as any);
-        } catch {
+        } catch (err) {
+          console.log("[tRPC Handler] Auth error (expected for login):", err);
           user = null;
         }
         
@@ -97,9 +115,15 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    // Set response headers
+    console.log("[tRPC Handler] Response status:", response.status);
+    console.log("[tRPC Handler] Response headers:", Object.fromEntries(response.headers.entries()));
+
+    // Set response headers - IMPORTANT: Set Content-Type first
+    res.setHeader("Content-Type", "application/json");
+    
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== "set-cookie") {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== "set-cookie" && lowerKey !== "content-type") {
         res.setHeader(key, value);
       }
     });
@@ -107,17 +131,25 @@ export default async function handler(req: any, res: any) {
     // Add cookies if any
     if (cookies.length > 0) {
       res.setHeader("Set-Cookie", cookies);
+      console.log("[tRPC Handler] Cookies set:", cookies);
     }
 
     // Send response
     const responseBody = await response.text();
+    console.log("[tRPC Handler] Response body length:", responseBody.length);
+    console.log("[tRPC Handler] Response preview:", responseBody.substring(0, 200));
+    
     res.status(response.status).send(responseBody);
   } catch (error: any) {
     console.error("[tRPC Handler Error]:", error);
     console.error("[tRPC Handler Error Stack]:", error?.stack);
+    
+    // Always return JSON, never HTML
+    res.setHeader("Content-Type", "application/json");
     res.status(500).json({
       error: "Internal Server Error",
       message: error?.message || String(error),
+      type: "TRPC_HANDLER_ERROR",
     });
   }
 }
