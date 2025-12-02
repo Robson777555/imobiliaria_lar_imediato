@@ -36,12 +36,8 @@ export default function CookieBanner() {
   };
 
   const handleClose = () => {
+    // Não reabrir automaticamente - apenas fechar
     setShowBanner(false);
-    setTimeout(() => {
-      if (!hasConsent) {
-        setShowBanner(true);
-      }
-    }, 24 * 60 * 60 * 1000);
   };
 
   const toggleCategory = (category: 'analytics' | 'marketing' | 'preferences') => {
@@ -53,14 +49,16 @@ export default function CookieBanner() {
   if (!showBanner) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t-2 border-orange-500 shadow-2xl max-h-[90vh] overflow-y-auto"
-      >
+    <AnimatePresence mode="wait">
+      {showBanner && (
+        <motion.div
+          key="cookie-banner"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t-2 border-orange-500 shadow-2xl max-h-[90vh] overflow-y-auto"
+        >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="flex items-start gap-4 mb-4">
@@ -242,7 +240,8 @@ export default function CookieBanner() {
             )}
           </div>
         </div>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }
