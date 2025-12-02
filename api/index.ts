@@ -47,12 +47,18 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use((req, res, next) => {
   // In Vercel, rewrites change the destination but we need to preserve the original path
   // Check if we have the original URL in headers
-  const originalUrl = req.headers['x-vercel-original-path'] || req.headers['x-rewrite-path'] || req.originalUrl || req.url;
+  const originalUrlHeader = req.headers['x-vercel-original-path'] || req.headers['x-rewrite-path'];
+  const originalUrl = Array.isArray(originalUrlHeader) 
+    ? originalUrlHeader[0] 
+    : (originalUrlHeader || req.originalUrl || req.url);
   
   // If the request is for /api/trpc but req.path doesn't start with it, fix it
-  if (originalUrl && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
+  if (originalUrl && typeof originalUrl === 'string' && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
     req.url = originalUrl;
-    req.path = originalUrl.split('?')[0];
+    const pathPart = originalUrl.split('?')[0];
+    if (pathPart) {
+      (req as any).path = pathPart;
+    }
   }
   
   console.log(`[API] ${req.method} ${req.path} (original: ${originalUrl})`);

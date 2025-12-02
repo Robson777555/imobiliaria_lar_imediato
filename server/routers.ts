@@ -128,6 +128,7 @@ export const appRouter = router({
         
         return await db.createProperty({
           ...input,
+          description: input.description || null,
           image: imageValue,
           userId,
           available: input.available ? "true" : "false",
