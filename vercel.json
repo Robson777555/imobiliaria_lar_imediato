@@ -6,7 +6,8 @@
   "installCommand": "npm install",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "rewrites": [
@@ -21,6 +22,10 @@
     {
       "source": "/api/test",
       "destination": "/api/test"
+    },
+    {
+      "source": "/api/trpc/:path*",
+      "destination": "/api/trpc/:path*"
     },
     {
       "source": "/((?!api|_next/static|_next/image|favicon.ico).*)",

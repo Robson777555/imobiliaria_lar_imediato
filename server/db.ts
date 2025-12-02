@@ -39,11 +39,21 @@ export interface Property {
 export type InsertUser = Omit<User, "id" | "createdAt" | "updatedAt">;
 export type InsertProperty = Omit<Property, "id" | "createdAt" | "updatedAt">;
 
+// Detectar se estamos em ambiente serverless (Vercel)
+const IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+// Armazenamento em memória para ambiente serverless
+let memoryUsers: User[] | null = null;
+let memoryProperties: Property[] | null = null;
+
 const DATA_DIR = join(process.cwd(), "data");
 const USERS_FILE = join(DATA_DIR, "users.json");
 const PROPERTIES_FILE = join(DATA_DIR, "properties.json");
 
 async function ensureDataDir() {
+  if (IS_SERVERLESS) {
+    return; // Não tenta criar diretório em ambiente serverless
+  }
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
   } catch (error) {
@@ -51,6 +61,29 @@ async function ensureDataDir() {
 }
 
 export async function readUsers(): Promise<User[]> {
+  // Em ambiente serverless, usar memória
+  if (IS_SERVERLESS) {
+    if (memoryUsers === null) {
+      // Inicializar com usuário padrão se não existir
+      const now = new Date();
+      memoryUsers = [{
+        id: 1,
+        openId: null,
+        username: "@userCliente96",
+        passwordHash: "$2b$12$ycMHKNHKbn24Ec5iQUle0u7ME1qC3ppEWSVn7C2eNrCAB0Lkdi9mK", // hash de @passwordCliente96
+        name: "Cliente 96",
+        email: null,
+        loginMethod: "password",
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+        lastSignedIn: now,
+      }];
+    }
+    return memoryUsers;
+  }
+  
+  // Em ambiente local, usar arquivos
   try {
     await ensureDataDir();
     const data = await fs.readFile(USERS_FILE, "utf-8");
@@ -165,6 +198,21 @@ const MOCK_PROPERTIES: Omit<Property, "createdAt" | "updatedAt" | "userId">[] = 
 ];
 
 async function readProperties(): Promise<Property[]> {
+  // Em ambiente serverless, usar memória
+  if (IS_SERVERLESS) {
+    if (memoryProperties === null) {
+      const now = new Date();
+      memoryProperties = MOCK_PROPERTIES.map(p => ({
+        ...p,
+        userId: 0,
+        createdAt: now,
+        updatedAt: now,
+      }));
+    }
+    return memoryProperties;
+  }
+  
+  // Em ambiente local, usar arquivos
   try {
     await ensureDataDir();
     const data = await fs.readFile(PROPERTIES_FILE, "utf-8");
@@ -201,11 +249,19 @@ async function readProperties(): Promise<Property[]> {
 }
 
 async function writeUsers(users: User[]): Promise<void> {
+  if (IS_SERVERLESS) {
+    memoryUsers = users;
+    return;
+  }
   await ensureDataDir();
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
 }
 
 async function writeProperties(properties: Property[]): Promise<void> {
+  if (IS_SERVERLESS) {
+    memoryProperties = properties;
+    return;
+  }
   await ensureDataDir();
   await fs.writeFile(PROPERTIES_FILE, JSON.stringify(properties, null, 2), "utf-8");
 }
