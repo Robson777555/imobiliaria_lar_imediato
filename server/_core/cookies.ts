@@ -8,16 +8,30 @@ function isIpAddress(host: string) {
 }
 
 function isSecureRequest(req: Request) {
+  // Verificar protocolo direto
   if (req.protocol === "https") return true;
 
+  // Verificar header X-Forwarded-Proto (usado por proxies como Vercel/Netlify)
   const forwardedProto = req.headers["x-forwarded-proto"];
-  if (!forwardedProto) return false;
+  if (forwardedProto) {
+    const protoList = Array.isArray(forwardedProto)
+      ? forwardedProto
+      : forwardedProto.split(",");
+    
+    const isHttps = protoList.some(proto => proto.trim().toLowerCase() === "https");
+    if (isHttps) return true;
+  }
 
-  const protoList = Array.isArray(forwardedProto)
-    ? forwardedProto
-    : forwardedProto.split(",");
+  // Verificar se está em produção (Vercel sempre usa HTTPS)
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    // Em produção, assumir HTTPS a menos que seja explicitamente localhost
+    const hostname = req.hostname;
+    if (!hostname || (!LOCAL_HOSTS.has(hostname) && !isIpAddress(hostname))) {
+      return true;
+    }
+  }
 
-  return protoList.some(proto => proto.trim().toLowerCase() === "https");
+  return false;
 }
 
 export function getSessionCookieOptions(

@@ -16,15 +16,28 @@ app.set('trust proxy', true);
 // CORS Configuration - CRITICAL for production
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const host = req.headers.host;
+  
+  // Construir lista de origens permitidas
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
     process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : null,
+    // Permitir mesma origem (quando frontend e backend estão no mesmo domínio)
+    origin,
+    host ? `https://${host}` : null,
   ].filter(Boolean);
 
-  // Allow requests from any origin in development, or from allowed origins in production
-  if (process.env.NODE_ENV === "development" || !origin || allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const isAllowedOrigin = !origin || allowedOrigins.includes(origin) || isDevelopment;
+
+  console.log(`[CORS] Origin: ${origin}, Host: ${host}, Allowed: ${isAllowedOrigin}, Dev: ${isDevelopment}`);
+
+  // Permitir requisições em desenvolvimento ou de origens permitidas
+  if (isDevelopment || isAllowedOrigin) {
+    // Em produção, usar a origem específica se fornecida, senão usar *
+    const allowOrigin = (isDevelopment || !origin) ? (origin || "*") : origin;
+    res.setHeader("Access-Control-Allow-Origin", allowOrigin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");

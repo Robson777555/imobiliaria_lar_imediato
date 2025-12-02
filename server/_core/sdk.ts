@@ -195,6 +195,7 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
+      console.log(`[verifySession] Nenhum cookie fornecido`);
       return null;
     }
 
@@ -205,7 +206,14 @@ class SDKServer {
       });
       
       const payloadRecord = payload as Record<string, unknown>;
+      console.log(`[verifySession] Payload decodificado:`, { 
+        hasOpenId: !!payloadRecord.openId, 
+        hasAppId: !!payloadRecord.appId, 
+        hasUserId: payloadRecord.userId !== undefined,
+        userId: payloadRecord.userId 
+      });
 
+      // Verificar primeiro se tem openId e appId (login OAuth)
       if (payloadRecord.openId && payloadRecord.appId) {
         const { openId, appId, name } = payloadRecord;
         if (
@@ -213,29 +221,38 @@ class SDKServer {
           !isNonEmptyString(appId) ||
           !isNonEmptyString(name)
         ) {
+          console.log(`[verifySession] openId/appId/name inválidos`);
           return null;
         }
-      return {
-        openId,
-        appId,
-        name,
-      };
-      }
-      
-      if (payloadRecord.userId !== undefined) {
-        const userId = payloadRecord.userId as number;
-        const username = (payloadRecord.username as string) || '';
-        const name = (payloadRecord.name as string) || username;
-        
+        console.log(`[verifySession] Sessão OAuth válida: openId=${openId}`);
         return {
-          openId: `password_${userId}`,
-          appId: ENV.appId,
+          openId,
+          appId,
           name,
         };
       }
+      
+      // Se não tem openId/appId, verificar se tem userId (login com senha)
+      if (payloadRecord.userId !== undefined) {
+        const userId = payloadRecord.userId as number;
+        const username = (payloadRecord.username as string) || '';
+        const name = (payloadRecord.name as string) || username || `User ${userId}`;
+        
+        // Garantir que name não seja vazio
+        const finalName = name || `User ${userId}`;
+        
+        console.log(`[verifySession] Sessão com senha válida: userId=${userId}, openId=password_${userId}`);
+        return {
+          openId: `password_${userId}`,
+          appId: ENV.appId,
+          name: finalName,
+        };
+      }
 
+      console.log(`[verifySession] Payload não contém openId/appId nem userId`);
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`[verifySession] Erro ao verificar sessão:`, error?.message || error);
       return null;
     }
   }

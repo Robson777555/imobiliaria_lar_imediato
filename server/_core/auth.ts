@@ -25,13 +25,26 @@ export async function createSessionToken(
   const expiresInMs = options?.expiresInMs ?? ONE_YEAR_MS;
   const secret = new TextEncoder().encode(ENV.cookieSecret);
 
-  const token = await new SignJWT({
+  // Para login com senha (sem openId), usar userId no payload
+  // O SDK verificaSession vai converter userId para password_{userId}
+  // Para login OAuth, usar openId diretamente
+  const payload: any = {
     userId: user.id,
-    username: user.username,
-    openId: user.openId,
+    username: user.username || '',
     role: user.role,
-    name: user.name || '',
-  })
+    name: user.name || user.username || '',
+  };
+
+  // Se o usuário tem openId (OAuth), incluir openId e appId no payload
+  // Caso contrário, o SDK vai detectar userId e converter para password_{userId}
+  if (user.openId) {
+    payload.openId = user.openId;
+    payload.appId = ENV.appId;
+  }
+
+  console.log(`[createSessionToken] Criando token para usuário ID: ${user.id}, username: ${user.username}, openId: ${user.openId || 'null'}`);
+
+  const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(Math.floor(Date.now() / 1000) + expiresInMs / 1000)
