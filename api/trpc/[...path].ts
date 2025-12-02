@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+// Using any types for Vercel request/response to avoid dependency issues
+type VercelRequest = any;
+type VercelResponse = any;
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../server/routers";
 import { createContext } from "../../server/_core/context";
