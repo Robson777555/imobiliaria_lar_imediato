@@ -120,8 +120,8 @@ function App() {
         defaultTheme="light"
       >
         <TooltipProvider>
-          <Toaster />
           <AuthGuard>
+            <Toaster key="app-toaster" />
             <Router />
             <CookieBanner />
           </AuthGuard>

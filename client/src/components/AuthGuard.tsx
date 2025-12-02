@@ -8,14 +8,22 @@ interface AuthGuardProps {
 export default function AuthGuard({ children }: AuthGuardProps) {
   const { loading, isAuthenticated } = useAuth();
   const hasRedirected = useRef(false);
+  const isMountedRef = useRef(false);
 
   const publicPaths = ['/login', '/politica-privacidade', '/termos-servico'];
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
   const isPublicPath = publicPaths.includes(currentPath);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Redirecionamento imediato para login se não autenticado
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !isMountedRef.current) return;
     
     // Se não for uma rota pública e não estiver autenticado, redirecionar
     if (!isPublicPath && !isAuthenticated && !loading && !hasRedirected.current) {
