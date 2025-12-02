@@ -78,15 +78,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("[Express Error]:", err);
-  res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-});
-
 // OAuth callback under /api/oauth/callback
 try {
   registerOAuthRoutes(app);
@@ -95,28 +86,35 @@ try {
 }
 
 // tRPC API - handle both /api/trpc and root path (for Vercel rewrites)
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
+try {
+  const tRPCMiddleware = createExpressMiddleware({
     router: appRouter,
     createContext,
     onError: ({ error, path, type }) => {
       console.error(`[tRPC Error] ${type} ${path}:`, error);
+      if (error.stack) {
+        console.error(`[tRPC Error] Stack:`, error.stack);
+      }
     },
-  })
-);
+  });
 
-// Also handle root path for Vercel rewrites
-app.use(
-  "/",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-    onError: ({ error, path, type }) => {
-      console.error(`[tRPC Error] ${type} ${path}:`, error);
-    },
-  })
-);
+  app.use("/api/trpc", tRPCMiddleware);
+  
+  // Also handle root path for Vercel rewrites
+  app.use("/", tRPCMiddleware);
+} catch (error: any) {
+  console.error("[tRPC Setup Error]:", error);
+  // Fallback handler para erros de setup
+  app.use("/api/trpc", (req, res) => {
+    res.status(500).json({
+      error: {
+        message: "Failed to setup tRPC middleware",
+        code: "TRPC_SETUP_ERROR",
+        details: error.message,
+      },
+    });
+  });
+}
 
 // In Vercel, static files are served automatically
 // Only serve static files if NOT in Vercel environment
@@ -141,6 +139,38 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== "development") {
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware - DEVE vir DEPOIS de todas as rotas
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[Express Error]:", err);
+  
+  // Garantir que sempre retorne JSON
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      error: err.message || "Internal Server Error",
+      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    });
+  }
+});
+
+// Handler final para capturar todas as requisições não tratadas
+app.use((req: express.Request, res: express.Response) => {
+  if (!res.headersSent) {
+    res.status(404).json({
+      error: "Not Found",
+      path: req.path,
+    });
+  }
+});
+
+// Handler global para erros não capturados
+process.on('unhandledRejection', (reason: any, promise) => {
+  console.error('[Unhandled Rejection]:', reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('[Uncaught Exception]:', error);
 });
 
 // Export for Vercel serverless function
