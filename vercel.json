@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
+  "framework": null,
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "dist/**",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/trpc/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api/oauth/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ]
+}
+
