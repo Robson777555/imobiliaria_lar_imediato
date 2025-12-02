@@ -24,10 +24,6 @@
       "destination": "/api/test"
     },
     {
-      "source": "/api/trpc/:path*",
-      "destination": "/api/trpc/:path*"
-    },
-    {
       "source": "/((?!api|_next/static|_next/image|favicon.ico).*)",
       "destination": "/index.html"
     }
