@@ -13,6 +13,22 @@ const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Middleware to fix path for Vercel rewrites
+app.use((req, res, next) => {
+  // In Vercel, rewrites change the destination but we need to preserve the original path
+  // Check if we have the original URL in headers
+  const originalUrl = req.headers['x-vercel-original-path'] || req.headers['x-rewrite-path'] || req.originalUrl || req.url;
+  
+  // If the request is for /api/trpc but req.path doesn't start with it, fix it
+  if (originalUrl && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
+    req.url = originalUrl;
+    req.path = originalUrl.split('?')[0];
+  }
+  
+  console.log(`[API] ${req.method} ${req.path} (original: ${originalUrl})`);
+  next();
+});
+
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("[Express Error]:", err);
@@ -29,21 +45,29 @@ try {
   console.error("[OAuth Routes Error]:", error);
 }
 
-// tRPC API
-try {
-  app.use(
-    "/api/trpc",
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-      onError: ({ error, path, type }) => {
-        console.error(`[tRPC Error] ${type} ${path}:`, error);
-      },
-    })
-  );
-} catch (error) {
-  console.error("[tRPC Middleware Error]:", error);
-}
+// tRPC API - handle both /api/trpc and root path (for Vercel rewrites)
+app.use(
+  "/api/trpc",
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+    onError: ({ error, path, type }) => {
+      console.error(`[tRPC Error] ${type} ${path}:`, error);
+    },
+  })
+);
+
+// Also handle root path for Vercel rewrites
+app.use(
+  "/",
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+    onError: ({ error, path, type }) => {
+      console.error(`[tRPC Error] ${type} ${path}:`, error);
+    },
+  })
+);
 
 // In Vercel, static files are served automatically
 // Only serve static files if NOT in Vercel environment
