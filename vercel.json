@@ -12,6 +12,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/trpc/:path*",
+      "destination": "/api/index"
+    },
+    {
       "source": "/api/oauth/:path*",
       "destination": "/api/index"
     },
