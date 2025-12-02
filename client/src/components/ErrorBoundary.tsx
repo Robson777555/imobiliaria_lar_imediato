@@ -18,7 +18,26 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    // Se for erro de DOM, tentar não quebrar completamente
+    if (error.name === 'NotFoundError' && error.message.includes('removeChild')) {
+      console.warn('[ErrorBoundary] Erro de DOM detectado, tentando recuperar...');
+      // Retornar estado sem erro para tentar continuar
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    
+    // Se for erro de DOM, tentar recuperar automaticamente
+    if (error.name === 'NotFoundError' && error.message.includes('removeChild')) {
+      console.warn('[ErrorBoundary] Erro de DOM detectado. Tentando recuperar...');
+      // Forçar re-render após um pequeno delay
+      setTimeout(() => {
+        this.setState({ hasError: false, error: null });
+      }, 100);
+    }
   }
 
   render() {
