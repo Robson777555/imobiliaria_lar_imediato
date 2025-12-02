@@ -1,13 +1,17 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../server/routers";
-import { createContext } from "../../server/_core/context";
 import { sdk } from "../../server/_core/sdk";
 
+// Wrapper para garantir que sempre retorna JSON
 export default async function handler(req: any, res: any) {
-  console.log("[tRPC Handler] Iniciado");
+  // Garantir Content-Type JSON desde o início
+  res.setHeader("Content-Type", "application/json");
+  
+  console.log("[tRPC Handler] ===== INICIADO =====");
   console.log("[tRPC Handler] Method:", req.method);
   console.log("[tRPC Handler] Query:", JSON.stringify(req.query));
   console.log("[tRPC Handler] URL:", req.url);
+  console.log("[tRPC Handler] Headers:", JSON.stringify(req.headers));
   
   try {
     // Get the original URL path from Vercel's catch-all route
@@ -42,16 +46,22 @@ export default async function handler(req: any, res: any) {
 
     // Get request body
     let body: string | undefined;
-    if (req.body && req.method !== "GET" && req.method !== "HEAD") {
+    if (req.body && method !== "GET" && method !== "HEAD") {
       body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
       console.log("[tRPC Handler] Body length:", body?.length);
     }
 
     // Create Fetch Request
     const fetchReq = new Request(url, {
-      method: req.method || "GET",
+      method: method,
       headers: new Headers(req.headers as Record<string, string>),
       body,
+    });
+    
+    console.log("[tRPC Handler] Fetch Request criado:", {
+      method: fetchReq.method,
+      url: fetchReq.url,
+      hasBody: !!body,
     });
 
     // Handle cookies in response
@@ -143,14 +153,38 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     console.error("[tRPC Handler Error]:", error);
     console.error("[tRPC Handler Error Stack]:", error?.stack);
+    console.error("[tRPC Handler Error Name]:", error?.name);
+    console.error("[tRPC Handler Error Message]:", error?.message);
     
-    // Always return JSON, never HTML
-    res.setHeader("Content-Type", "application/json");
-    res.status(500).json({
-      error: "Internal Server Error",
-      message: error?.message || String(error),
-      type: "TRPC_HANDLER_ERROR",
-    });
+    // SEMPRE retornar JSON, nunca HTML ou texto
+    try {
+      if (!res.headersSent) {
+        res.setHeader("Content-Type", "application/json");
+      }
+      
+      const errorResponse = {
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: error?.message || "An internal server error occurred",
+          data: {
+            code: "INTERNAL_SERVER_ERROR",
+            httpStatus: 500,
+            path: req.query?.path || "unknown",
+            stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+          },
+        },
+      };
+      
+      res.status(500).json(errorResponse);
+    } catch (jsonError: any) {
+      // Se até isso falhar, pelo menos tentar enviar texto como último recurso
+      console.error("[tRPC Handler] Erro ao enviar JSON:", jsonError);
+      if (!res.headersSent) {
+        res.status(500).send(JSON.stringify({
+          error: "Failed to serialize error response",
+        }));
+      }
+    }
   }
 }
 
