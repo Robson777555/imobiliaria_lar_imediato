@@ -5,13 +5,14 @@ import { sdk } from "../../server/_core/sdk";
 // Wrapper para garantir que sempre retorna JSON
 export default async function handler(req: any, res: any) {
   // Garantir Content-Type JSON desde o início
-  res.setHeader("Content-Type", "application/json");
+  if (!res.headersSent) {
+    res.setHeader("Content-Type", "application/json");
+  }
   
   console.log("[tRPC Handler] ===== INICIADO =====");
-  console.log("[tRPC Handler] Method:", req.method);
+  console.log("[tRPC Handler] Method:", req.method || req.httpMethod);
   console.log("[tRPC Handler] Query:", JSON.stringify(req.query));
   console.log("[tRPC Handler] URL:", req.url);
-  console.log("[tRPC Handler] Headers:", JSON.stringify(req.headers));
   
   try {
     // Get the original URL path from Vercel's catch-all route
