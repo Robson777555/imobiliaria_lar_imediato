@@ -28,6 +28,10 @@
       "destination": "/api/trpc/:path*"
     },
     {
+      "source": "/api/auth/:path*",
+      "destination": "/api/index"
+    },
+    {
       "source": "/((?!api|_next/static|_next/image|favicon.ico).*)",
       "destination": "/index.html"
     }

@@ -70,7 +70,7 @@ export async function readUsers(): Promise<User[]> {
         id: 1,
         openId: null,
         username: "@userCliente96",
-        passwordHash: "$2b$12$ycMHKNHKbn24Ec5iQUle0u7ME1qC3ppEWSVn7C2eNrCAB0Lkdi9mK", // hash de @passwordCliente96
+        passwordHash: "$2b$12$YNiu2IdZ7zee1i8m58.Y4.vqNfnJWlHMz8dovfoIDzTBM8U13ozGC", // hash de @passwordCliente96
         name: "Cliente 96",
         email: null,
         loginMethod: "password",

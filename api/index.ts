@@ -6,6 +6,7 @@ import { createContext } from "../server/_core/context";
 import { registerOAuthRoutes } from "../server/_core/oauth";
 import path from "path";
 import fs from "fs";
+import { parse } from "cookie";
 
 const app = express();
 
@@ -92,6 +93,127 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== "development") {
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+import crypto from "crypto";
+
+const VALID_USERNAME = "@userCliente96";
+const VALID_PASSWORD = "@passwordCliente96";
+const SECRET_KEY = process.env.SESSION_SECRET || "default-secret-key-change-in-production";
+
+function createSessionToken(username: string): string {
+  const timestamp = Date.now().toString();
+  const message = `${username}:${timestamp}`;
+  const signature = crypto
+    .createHmac("sha256", SECRET_KEY)
+    .update(message)
+    .digest("hex");
+  return `${message}:${signature}`;
+}
+
+function verifySessionToken(token: string): boolean {
+  try {
+    const parts = token.split(":");
+    if (parts.length !== 3) {
+      return false;
+    }
+    const [username, timestamp, signature] = parts;
+    
+    const tokenTime = parseInt(timestamp, 10);
+    const now = Date.now();
+    if (now - tokenTime > 24 * 60 * 60 * 1000) {
+      return false;
+    }
+    
+    const message = `${username}:${timestamp}`;
+    const expectedSignature = crypto
+      .createHmac("sha256", SECRET_KEY)
+      .update(message)
+      .digest("hex");
+    
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+  } catch {
+    return false;
+  }
+}
+
+app.use("/api/auth", (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
+
+app.post("/api/auth/login", (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Usuário e senha são obrigatórios",
+      });
+    }
+
+    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+      const token = createSessionToken(username);
+      
+        res.cookie("auth_token", token, {
+          path: "/",
+          maxAge: 86400 * 1000,
+          httpOnly: true,
+        sameSite: "lax",
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: "Login realizado com sucesso",
+      });
+    } else {
+      return res.status(401).json({
+        success: false,
+        message: "Credenciais inválidas",
+      });
+    }
+  } catch (error: any) {
+    console.error("Error in login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao processar login",
+    });
+  }
+});
+
+app.get("/api/auth/check", (req, res) => {
+  try {
+    const cookieHeader = req.headers.cookie || "";
+    const cookies = parse(cookieHeader);
+    const token = cookies.auth_token || "";
+
+    if (token && verifySessionToken(token)) {
+      return res.status(200).json({
+        authenticated: true,
+        username: VALID_USERNAME,
+      });
+    } else {
+      return res.status(401).json({
+        authenticated: false,
+      });
+    }
+  } catch (error: any) {
+    console.error("Error in check:", error);
+    return res.status(401).json({
+      authenticated: false,
+    });
+  }
 });
 
 // Export for Vercel serverless function

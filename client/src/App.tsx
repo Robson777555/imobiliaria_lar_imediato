@@ -5,8 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import CookieBanner from "./components/CookieBanner";
-import ProtectedRoute from "./components/ProtectedRoute";
-import AuthGuard from "./components/AuthGuard";
+import SimpleAuthGuard from "./components/SimpleAuthGuard";
 import Home from "./pages/Home";
 import PropertyDetails from "./pages/PropertyDetails";
 import Imoveis from "./pages/Imoveis";
@@ -18,12 +17,12 @@ import Sobre from "./pages/Sobre";
 import Contato from "./pages/Contato";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 import TermosServico from "./pages/TermosServico";
-import Login from "./pages/Login";
+import SimpleLogin from "./pages/SimpleLogin";
 
 function Router() {
   const publicRoutes = (
     <>
-      <Route path={"/login"} component={Login} />
+      <Route path={"/login"} component={SimpleLogin} />
       <Route path={"/politica-privacidade"} component={PoliticaPrivacidade} />
       <Route path={"/termos-servico"} component={TermosServico} />
     </>
@@ -31,69 +30,15 @@ function Router() {
 
   const protectedRoutes = (
     <>
-      <Route path={"/"}>
-        {() => (
-          <ProtectedRoute>
-            <Home />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/imoveis"}>
-        {() => (
-          <ProtectedRoute>
-            <Imoveis />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/buscar-imoveis"}>
-        {() => (
-          <ProtectedRoute>
-            <BuscarImoveis />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/anunciar-imovel"}>
-        {() => (
-          <ProtectedRoute>
-            <AnunciarImovel />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/gerenciar-imoveis"}>
-        {() => (
-          <ProtectedRoute>
-            <GerenciarImoveis />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/editar-imovel/:id"}>
-        {() => (
-          <ProtectedRoute>
-            <EditarImovel />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/sobre"}>
-        {() => (
-          <ProtectedRoute>
-            <Sobre />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/contato"}>
-        {() => (
-          <ProtectedRoute>
-            <Contato />
-          </ProtectedRoute>
-        )}
-      </Route>
-      <Route path={"/property/:id"}>
-        {() => (
-          <ProtectedRoute>
-            <PropertyDetails />
-          </ProtectedRoute>
-        )}
-      </Route>
+      <Route path={"/"} component={Home} />
+      <Route path={"/imoveis"} component={Imoveis} />
+      <Route path={"/buscar-imoveis"} component={BuscarImoveis} />
+      <Route path={"/anunciar-imovel"} component={AnunciarImovel} />
+      <Route path={"/gerenciar-imoveis"} component={GerenciarImoveis} />
+      <Route path={"/editar-imovel/:id"} component={EditarImovel} />
+      <Route path={"/sobre"} component={Sobre} />
+      <Route path={"/contato"} component={Contato} />
+      <Route path={"/property/:id"} component={PropertyDetails} />
     </>
   );
 
@@ -102,13 +47,7 @@ function Router() {
       {publicRoutes}
       {protectedRoutes}
       <Route path={"/404"} component={NotFound} />
-      <Route>
-        {() => (
-          <ProtectedRoute>
-            <NotFound />
-          </ProtectedRoute>
-        )}
-      </Route>
+      <Route component={NotFound} />
     </Switch>
   );
 }
@@ -121,10 +60,10 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
-          <AuthGuard>
+          <SimpleAuthGuard>
             <Router />
             <CookieBanner />
-          </AuthGuard>
+          </SimpleAuthGuard>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

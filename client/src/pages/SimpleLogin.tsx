@@ -1,80 +1,83 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useAuth } from '@/_core/hooks/useAuth';
-import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Lock, User, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
 
-export default function Login() {
+export default function SimpleLogin() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated, loading } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const utils = trpc.useUtils();
-  const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: async (data) => {
-      toast.success('Login realizado com sucesso!');
-      await new Promise(resolve => setTimeout(resolve, 300));
-      await utils.auth.me.invalidate();
-      
-      // Redireciona após invalidar a query (os dados serão atualizados automaticamente)
-      const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
-      window.location.href = returnTo;
-    },
-    onError: (error) => {
-      setError(error.message || 'Erro ao fazer login. Verifique suas credenciais.');
-      toast.error('Erro ao fazer login');
-    },
-  });
-
+  // Verificar se já está autenticado
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
-      setLocation(returnTo);
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/check', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
+          setLocation(returnTo);
+        }
+      }
+    } catch (error) {
+      // Ignorar erros na verificação
     }
-  }, [loading, isAuthenticated, setLocation]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-50 to-orange-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto" />
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Verificando autenticação...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return null;
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     if (!username.trim() || !password.trim()) {
       setError('Por favor, preencha todos os campos');
+      setLoading(false);
       return;
     }
 
-    loginMutation.mutate({
-      username: username.trim(),
-      password,
-    });
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const returnTo = new URLSearchParams(window.location.search).get('returnTo') || '/';
+        window.location.href = returnTo;
+      } else {
+        setError(data.message || 'Credenciais inválidas');
+        setLoading(false);
+      }
+    } catch (error) {
+      setError('Erro ao fazer login. Tente novamente.');
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-50 to-orange-100 dark:from-slate-900 dark:to-slate-800 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100 dark:from-slate-900 dark:to-slate-800 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 space-y-6">
           {/* Header */}
@@ -112,7 +115,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
-                  disabled={loginMutation.isPending}
+                  disabled={loading}
                   autoComplete="username"
                   required
                 />
@@ -133,7 +136,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
-                  disabled={loginMutation.isPending}
+                  disabled={loading}
                   autoComplete="current-password"
                   required
                 />
@@ -156,9 +159,9 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={loginMutation.isPending}
+              disabled={loading}
             >
-              {loginMutation.isPending ? (
+              {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Entrando...
