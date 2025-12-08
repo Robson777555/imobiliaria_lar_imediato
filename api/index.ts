@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "../server/_core/oauth";
 import path from "path";
 import fs from "fs";
 import { parse } from "cookie";
+import crypto from "crypto";
 
 const app = express();
 
@@ -16,17 +17,16 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Middleware to fix path for Vercel rewrites
 app.use((req, res, next) => {
-  // In Vercel, rewrites change the destination but we need to preserve the original path
-  // Check if we have the original URL in headers
-  const originalUrl = req.headers['x-vercel-original-path'] || req.headers['x-rewrite-path'] || req.originalUrl || req.url;
+  const originalUrlHeader = req.headers['x-vercel-original-path'] || req.headers['x-rewrite-path'];
+  const originalUrl = typeof originalUrlHeader === 'string' ? originalUrlHeader : (req.originalUrl || req.url);
   
-  // If the request is for /api/trpc but req.path doesn't start with it, fix it
-  if (originalUrl && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
+  if (originalUrl && typeof originalUrl === 'string' && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
     req.url = originalUrl;
-    req.path = originalUrl.split('?')[0];
+    if (typeof originalUrl === 'string') {
+      req.path = originalUrl.split('?')[0];
+    }
   }
   
-  console.log(`[API] ${req.method} ${req.path} (original: ${originalUrl})`);
   next();
 });
 
@@ -94,8 +94,6 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== "development") {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
-
-import crypto from "crypto";
 
 const VALID_USERNAME = "@userCliente96";
 const VALID_PASSWORD = "@passwordCliente96";
@@ -166,12 +164,19 @@ app.post("/api/auth/login", (req, res) => {
     if (username === VALID_USERNAME && password === VALID_PASSWORD) {
       const token = createSessionToken(username);
       
-        res.cookie("auth_token", token, {
-          path: "/",
-          maxAge: 86400 * 1000,
-          httpOnly: true,
-        sameSite: "lax",
-      });
+      const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
+      const cookieOptions: any = {
+        path: "/",
+        maxAge: 86400 * 1000,
+        httpOnly: true,
+        sameSite: "lax" as const,
+      };
+      
+      if (isProduction) {
+        cookieOptions.secure = true;
+      }
+      
+      res.cookie("auth_token", token, cookieOptions);
       
       return res.status(200).json({
         success: true,
@@ -187,7 +192,7 @@ app.post("/api/auth/login", (req, res) => {
     console.error("Error in login:", error);
     return res.status(500).json({
       success: false,
-      message: "Erro ao processar login",
+      message: error.message || "Erro ao processar login",
     });
   }
 });
@@ -195,6 +200,12 @@ app.post("/api/auth/login", (req, res) => {
 app.get("/api/auth/check", (req, res) => {
   try {
     const cookieHeader = req.headers.cookie || "";
+    if (!cookieHeader) {
+      return res.status(401).json({
+        authenticated: false,
+      });
+    }
+    
     const cookies = parse(cookieHeader);
     const token = cookies.auth_token || "";
 
@@ -210,8 +221,9 @@ app.get("/api/auth/check", (req, res) => {
     }
   } catch (error: any) {
     console.error("Error in check:", error);
-    return res.status(401).json({
+    return res.status(500).json({
       authenticated: false,
+      error: error.message || "Erro ao verificar autenticação",
     });
   }
 });
