@@ -14,8 +14,12 @@ export async function createContext(
   let user: User | null = null;
 
   try {
-    user = await sdk.authenticateRequest(opts.req);
+    // Não tentar autenticar se for uma rota de auth
+    if (opts.req.path && !opts.req.path.startsWith('/api/auth')) {
+      user = await sdk.authenticateRequest(opts.req);
+    }
   } catch (error) {
+    // Silenciosamente falhar na autenticação - não é um erro crítico
     user = null;
   }
 

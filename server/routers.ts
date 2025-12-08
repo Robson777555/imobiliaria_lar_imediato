@@ -113,6 +113,9 @@ export const appRouter = router({
           userId,
           available: input.available ? "true" : "false",
           featured: input.featured ? "true" : "false",
+          description: input.description ?? null,
+          neighborhood: input.neighborhood ?? null,
+          address: input.address ?? null,
         });
       }),
 
