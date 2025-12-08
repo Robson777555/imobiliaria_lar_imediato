@@ -22,9 +22,6 @@ app.use((req, res, next) => {
   
   if (originalUrl && typeof originalUrl === 'string' && originalUrl.startsWith('/api/trpc') && !req.path.startsWith('/api/trpc')) {
     req.url = originalUrl;
-    if (typeof originalUrl === 'string') {
-      req.path = originalUrl.split('?')[0];
-    }
   }
   
   next();
